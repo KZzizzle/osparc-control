@@ -12,7 +12,7 @@ install-poetry:
 # https://cookiecutter-hypermodern-python.readthedocs.io/en/2021.11.26/quickstart.html
 .PHONY: install-dev
 install-dev:
-	pip install nox nox-poetry
+	pip install nox nox-poetry tomlkit
 
 .PHONY: tests
 tests:	# run tests on lowest python interpreter
