@@ -1,16 +1,24 @@
 
 
-import requests
 from lockfile import LockFile
-from osparc_control import ControlInterface
+import requests
+
 import numpy as np
 import scipy
 import threading
 import time
-import matplotlib.pyplot as plt 
+import matplotlib.pylab as plt 
 import json
 import random
 import os
+
+
+insyncpath = "test_controller/insync.json"
+outsyncpath = "test_controller/outsync.json"
+# sidecarsatelite_url = "https://osparc-master.speag.com/x/9bd7ee34-f2d8-4d6e-ac6d-754a93e8623c" + "/api/contents/outsync.json"
+# sidecar_url = "https://osparc-master.speag.com/x/9bd7ee34-f2d8-4d6e-ac6d-754a93e8623c" + "/api/contents/insync.json"
+
+
 
 def jsonKeys2int(x):
     if isinstance(x, dict):
@@ -31,6 +39,7 @@ def int_please_object_hook(obj):
     return rv
 
 
+# In[4]:
 
 
 class KindofPriorityQueue():
@@ -84,87 +93,64 @@ class KindofPriorityQueue():
 # In[5]:
 
 
-class Tsolver:
-    def __init__(self, dx, n, Tinit, dt, Tsource, k, sourcescale, tend, sidecar):
-        self.T = Tinit;
-        self.t = 0;
-        self.dx = dx;
-        self.n = n;
-        self.Tinit = Tinit;
-        self.dt = dt;
-        self.Tsource = Tsource;
-        self.k = k;
-        self.sourcescale = sourcescale;
-        self.tend = tend;
-        self.sidecar = sidecar;
-
-    def main(self):
-        self.wait_for_start_signal()
-        self.record(self.t)
-        self.apply_set(self.t)
- 
-        while self.t<self.tend:
-            self.record(self.t)
-            self.wait_if_necessary(self.t)
-            self.apply_set(self.t)  
-
-            diffusion=self.k/(self.dx*self.dx) * (self.T[:n-2,1:n-1]+self.T[1:n-1,:n-2]+self.T[2:n,1:n-1]+self.T[1:n-1,2:n]-4*self.T[1:n-1,1:n-1]);
-            self.T[1:n-1,1:n-1]=self.T[1:n-1,1:n-1]+self.dt*(self.sourcescale*self.Tsource+diffusion);
-            self.t=self.t+self.dt;
-
-        self.is_finished();
-        return self.T;
-    
-    def wait_a_bit(self):
-        time.sleep(0.05);
+class Controller:
+    def __init__(self,tweakparam_key, initval, regulationparam_key, regulationparam_otherparams, setpoint, iteration_time, KP, KI, KD, controlled):
+        self.iteration_time = iteration_time
+        self.tweakparam_key = tweakparam_key
+        self.initval = initval
+        self.regulationparam_key = regulationparam_key
+        self.regulationparam_otherparams = regulationparam_otherparams
+        self.setpoint = setpoint
+        self.KP = KP
+        self.KI = KI
+        self.KD = KD
+        self.controlled = controlled
+        self.errors=[]
+        self.sets=[]
+        self.controlledvals=[]
         
-    def wait_if_necessary(self,t): #move what is possible into the sidecar
-        self.sidecar.syncout()
-        while (not self.sidecar.waitqueue.empty()) and self.sidecar.waitqueue.first()[0] <= t:
-            self.sidecar.pause()
-            self.wait_a_bit()
-            self.sidecar.syncin()
-        self.sidecar.release()
-
-    def wait_for_start_signal(self):
-        while not self.sidecar.startsignal:
-            self.wait_a_bit()
-            self.sidecar.syncin()
-        self.sidecar.release()
-
-    def is_finished(self):
-        self.record(float("inf"))
-        self.sidecar.waitqueue.deleteall();
-        self.sidecar.endsignal=True; #make function for this and the next line
-        self.sidecar.pause() # what happens if the sidecar is in the middle of executing the wait_for_pause; how about release synchronization
-
-    def record(self,t):
-        while (not self.sidecar.recordqueue.empty()) and self.sidecar.recordqueue.first()[0] <= t:
-            pop1=self.sidecar.recordqueue.pop()
-            recindex=pop1[1]
-            rec1=pop1[2]
-            if rec1[0]=='Tpoint':
-                self.sidecar.records[recindex].append((t,self.T[rec1[1][0],rec1[1][1]]))
-            elif rec1[0]=='Tvol':
-                self.sidecar.records[recindex].append((t,self.T[rec1[1][0]:rec1[1][2],rec1[1][1]:rec1[1][3]]))
-        self.sidecar.t=t
-
-    def apply_set(self,t):
-        while (not self.sidecar.setqueue.empty()) and self.sidecar.setqueue.first()[0] <= t:
-            set1=self.sidecar.setqueue.pop()[2]
-            if set1[0]=='Tsource':
-                if set1[1].shape==Tsource.shape:
-                    self.Tsource=set1[1]
-            elif set1[0]=='SARsource':
-                if set1[1].shape==Tsource.shape:
-                    self.Tsource=set1[1]/heatcapacity
-            elif set1[0]=='k':
-                if set1[1]>0:
-                    self.set_k(set1[1])
-            elif set1[0]=='sourcescale':
-                self.sourcescale=set1[1]
-            elif set1[0]=='tend':
-                self.tend=set1[1]
+    def controllermain(self):
+        error_prior = 0
+        integral_prior = 0
+        bias = 0 
+        
+        self.t = self.iteration_time
+        
+        recindex=self.controlled.record(self.regulationparam_key, self.iteration_time, self.regulationparam_otherparams)
+        waittime=self.iteration_time
+        waitindex=self.controlled.wait_for_me_at(waittime)
+        newset=self.initval
+        self.controlled.setnow(self.tweakparam_key, newset)
+        self.controlled.start()
+        self.errors=[]
+        self.sets=[]
+        self.controlledvals=[]
+        lasttime=0
+        while not self.controlled.finished():
+            self.controlled.wait_for_time(waittime,1000)
+            get1=self.controlled.get(str(recindex))
+            if not get1:
+                error1 = error_prior
+                timestep=self.t-lasttime
+                lasttime=self.t
+                print('problem?')
+            else:
+                error1 = self.setpoint - get1[0][1]
+                timestep=get1[0][0]-lasttime
+                lasttime=get1[0][0]
+            self.errors.append(error1)
+            self.controlledvals.append(get1[0][1])
+            integral = integral_prior + error1 * timestep
+            derivative = (error1 - error_prior) / timestep
+            output=self.KP*error1 + self.KI*integral + self.KD*derivative + bias
+            newset=newset+output 
+            self.controlled.setnow(self.tweakparam_key, newset)
+            self.sets.append(newset)
+            error_prior = error1
+            integral_prior = integral
+            waittime=waittime+self.iteration_time
+            recindex=self.controlled.record(self.regulationparam_key,waittime,self.regulationparam_otherparams)
+            waitindex=self.controlled.continue_until(waittime,waitindex)
 
 
 # In[6]:
@@ -246,31 +232,38 @@ class SideCar:
             self.syncin()
             self.paused=False 
             self.syncout()
-            
+
+
+
+######## CHANGE THIS ########################    
+#         
     def syncin(self):
         inputdata = None
-        ##### CHANGE #########
-        resp = requests.get(self.sidecar_url)
-        if resp.status_code==200:
-            try: 
-                inputdata = json.loads(resp.json()['content'])
-
-            except:
-                print("problem reading data from " + self.sidecar_url)
+        resp = requests.get(sidecar_url)
+#         if resp.status_code==200:
+#             inputdata = json.loads(resp.json()['content'])
+        if os.path.exists(insyncpath):
+#             with self.locks['insynclock']: # xxx timeout?
+            with LockFile(insyncpath):
+                with open(insyncpath, 'r') as f: 
+                    inputdata = json.load(f)
         if inputdata != None:
             self.instructions=inputdata['instructions']
             self.executeInstructions()
-        ##### CHANGE #########    
             
     def syncout(self):
-        ##### CHANGE #########
         outputdata={'t':self.t, 'endsignal':self.endsignal, 'paused':self.paused, 'records':self.records} # start?
-        with LockFile(outsyncpath):
-#         logger_out.info(json.dumps(outputdata, sort_keys=True))
-#         with self.locks['outsynclock']: # xxx timeout?
-            with open(outsyncpath,"w") as output1:     
-                json.dump(outputdata, output1, sort_keys=True)
-        ##### CHANGE #########
+        request_id = self.interface.request_with_delayed_reply(
+            "command_generic", params=outputdata
+        )   
+        print("sent " + str(request_id))             
+#         with LockFile(outsyncpath):
+#             with open(outsyncpath,"w") as output1:     
+#                 json.dump(outputdata, output1, sort_keys=True)
+
+######## CHANGE THIS ########################  
+ 
+     
     def executeInstructions(self):
         l=len(self.instructions)
         
@@ -298,7 +291,7 @@ class SideCar:
 
 
 class SideCarSatelite:
-    def __init__(self):
+    def __init__(self, interface):
         self.t=0;
         self.startsignal=False;
         self.endsignal=False;
@@ -307,6 +300,7 @@ class SideCarSatelite:
         self.instructions=[]
         self.canbeset=[]
         self.canbegotten=[]
+        self.interface=interface
  
     def can_be_set(self): # controllable parameters of the model
         return self.canbeset; 
@@ -371,53 +365,53 @@ class SideCarSatelite:
             self.syncin()
             self.paused=False #syncout of the pause?
             self.syncout()
+
+######## CHANGE THIS ########################   
             
     def syncout(self):
-        resp = requests.get(sidecarsatelite_url)
-        if resp.status_code==200:
-            inputdata = json.loads(resp.json()['content'])
-#         if os.path.exists(outsyncpath):
-#             with LockFile(outsyncpath):
-# #             with self.locks['outsynclock']: # xxx timeout?
-#                 with open(outsyncpath, 'r') as f: 
-#                     inputdata = json.load(f)
-            self.t=inputdata['t']
-            self.endsignal=inputdata['endsignal']
-            self.paused=inputdata['paused']
-            self.records=inputdata['records']
+        commands = self.interface.get_incoming_requests()
+        for command in commands:
+            if command.action == "command_data":
+                inputdata = command.params
+                self.t=inputdata['t']
+                self.endsignal=inputdata['endsignal']
+                self.paused=inputdata['paused']
+                self.records=inputdata['records']
+                # control_interface.reply_to_command(
+                #     request_id=command.request_id, payload=random_int
+                # )
+                # import pdb; pdb.set_trace()
+                print(inputdata)
+
+
+        # resp = requests.get(sidecarsatelite_url)
+        # if resp.status_code==200:
+        #     try:
+        #         inputdata = json.loads(resp.json()['content'])
+        #         self.t=inputdata['t']
+        #         self.endsignal=inputdata['endsignal']
+        #         self.paused=inputdata['paused']
+        #         self.records=inputdata['records']
+        #     except:
+        #         print('problem reading from ' + sidecarsatelite_url)
             
     def syncin(self):
         outputdata={'instructions':self.instructions}
-        with LockFile(insyncpath):
-#         logger_out.info(json.dumps(outputdata, sort_keys=True))
-#         import pdb; pdb.set_trace()
-#         with self.locks['insynclock']: # xxx timeout?
-            with open(insyncpath,"w") as output1:     
-                json.dump(outputdata, output1, sort_keys=True)
+        request_id = self.interface.request_with_delayed_reply(
+            "command_generic", params=outputdata
+        )
+        print("sent " + str(request_id))
+#         outputdata={'instructions':self.instructions}
+#         with LockFile(insyncpath):
+#             with open(insyncpath,"w") as output1:     
+#                 json.dump(outputdata, output1, sort_keys=True)
 
-
-# In[8]:
-
-
-class TSolverSideCar(SideCar):
-    def __init__(self, interface ):
-        SideCar.__init__(self, interface)
-        self.canbeset=self.can_be_set()
-        self.canbegotten=self.can_be_gotten()
-        
-    def can_be_set(self): # controllable parameters of the model
-        return ['Tsource', 'SARsource', 'k', 'sourcescale', 'tend']; 
-    
-    def can_be_gotten(self): # observables of the model (similar to sensor)
-        return ['Tpoint', 'Tvol'];
-
-
-# In[9]:
+######## CHANGE THIS ########################   
 
 
 class TSolverSideCarSatelite(SideCarSatelite):
-    def __init__(self ):
-        SideCarSatelite.__init__(self )
+    def __init__(self, interface):
+        SideCarSatelite.__init__(self, interface)
         self.canbeset=self.can_be_set()
         self.canbegotten=self.can_be_gotten()
         
@@ -428,33 +422,11 @@ class TSolverSideCarSatelite(SideCarSatelite):
         return ['Tpoint', 'Tvol'];
 
 
-# In[10]:
-
-
-class TsolverThread(threading.Thread): 
-    def __init__(self, dx, n, Tinit, dt, Tsource, k, sourcescale, tend, sidecar):
-        threading.Thread.__init__(self)
-        self.myTsolver=Tsolver(dx, n, Tinit, dt, Tsource, k, sourcescale, tend, sidecar)
-        self.name='Tsolver'
-    def run(self):
-        print("Starting ",self.name)
-        T=self.myTsolver.main()
-        fig = plt.figure()
-        ax = fig.add_subplot(1,1,1)
-        ax.set_aspect('equal')
-        plt.imshow(T)
-        plt.colorbar()
-        plt.show() #causes floating point error. why?
-        print("Exiting ",self.name)
-
-
-# In[11]:
-
 
 class TsolverSidecarThread(threading.Thread): 
-    def __init__(self, interface ):
+    def __init__(self):
         threading.Thread.__init__(self)
-        self.myTSolverSideCar=TSolverSideCar(interface)
+        self.myTSolverSideCar=TSolverSideCar()
         self.name='TsolverSidecar'
         self.stop=False
     def run(self):
@@ -464,13 +436,12 @@ class TsolverSidecarThread(threading.Thread):
         print("Exiting ",self.name)
 
 
-# In[12]:
 
 
 class TsolverSidecarSateliteThread(threading.Thread): 
-    def __init__(self ):
+    def __init__(self, interface):
         threading.Thread.__init__(self)
-        self.myTSolverSideCarSatelite=TSolverSideCarSatelite()
+        self.myTSolverSideCarSatelite=TSolverSideCarSatelite(interface)
         self.name='TsolverSidecarSatelite'
         self.stop=False
     def run(self):
@@ -481,4 +452,12 @@ class TsolverSidecarSateliteThread(threading.Thread):
 
 
 
-
+class ControllerThread(threading.Thread): 
+    def __init__(self,tweakparam_key, initval, regulationparam_key, regulationparam_otherparams, setpoint, iteration_time, KP, KI, KD, controlled):
+        threading.Thread.__init__(self)
+        self.myController=Controller(tweakparam_key, initval, regulationparam_key, regulationparam_otherparams, setpoint, iteration_time, KP, KI, KD, controlled)
+        self.name='Controller'
+    def run(self):
+        print("Starting ",self.name)
+        self.myController.controllermain()
+        print("Exiting ",self.name)

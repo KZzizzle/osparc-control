@@ -1,8 +1,9 @@
 from time import sleep
-
+import random
 from sidecar_solver import command_add
 from sidecar_solver import command_get_time
 from sidecar_solver import command_print_solver_status
+from sidecar_solver import command_random_in_range 
 from sidecar_solver import control_interface
 
 from osparc_control.core import ControlInterface
@@ -26,6 +27,16 @@ def handle_inputs(time_solver: "TimeSolver", request: CommandRequest) -> None:
     if request.action == command_print_solver_status.action:
         print("Solver internal status", time_solver)
         # finally exit
+        time_solver.can_continue = False
+        return
+    
+    if request.action == command_random_in_range.action :
+        random_int = random.randint(  
+            request.params["a"], request.params["b"]
+        )
+        time_solver.control_interface.reply_to_command(
+            request_id=request.request_id, payload=random_int
+        )
         time_solver.can_continue = False
         return
 
@@ -59,7 +70,7 @@ class TimeSolver:
 
             # process internal stuff
             self.time += 1
-            sleep(self.sleep_internal)
+            # sleep(self.sleep_internal)
 
 
 def main() -> None:

@@ -22,21 +22,26 @@ control_interface = ControlInterface(
     remote_port=2346,
     listen_port=2345,
 )
-control_interface.start_background_sync()
 
 wait_for_requests = True
+
+control_interface.start_background_sync()
+
 while wait_for_requests:
-    for command in control_interface.get_incoming_requests():
+    commands = control_interface.get_incoming_requests()
+    for command in commands:
         if command.action == random_in_range_manifest.action:
-            random_int = random.randint(  # noqa: S311
+            random_int = random.randint(  
                 command.params["a"], command.params["b"]
             )
             control_interface.reply_to_command(
                 request_id=command.request_id, payload=random_int
             )
+            time.sleep(0.1)
             wait_for_requests = False
+            print(command)
 
-# allow for message to be delivered
-time.sleep(0.01)
+# # allow for message to be delivered
+# time.sleep(0.01)
 
 control_interface.stop_background_sync()

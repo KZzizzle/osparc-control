@@ -12,18 +12,35 @@ import os
 from Tsolver import TsolverThread, TsolverSidecarThread
 
 
+from osparc_control import CommandManifest
+from osparc_control import CommandParameter
+from osparc_control import CommnadType
+from osparc_control import ControlInterface
+from osparc_control import ControlInterface
+
+
+
+command_generic = CommandManifest(
+    action="command_generic",
+    description="send some stuff",
+    params=[
+        CommandParameter(name="instructions", description="some instructions")
+    ],
+    command_type=CommnadType.WITH_DELAYED_REPLY,
+)
+
 control_interface = ControlInterface(
     remote_host="localhost",
-    exposed_interface=[command_add, command_get_time, command_print_solver_status, command_random_in_range],
+    exposed_interface=[command_generic],
     remote_port=1235,
     listen_port=1234,
 )
 
 
-insyncpath = "../insync.json"
-outsyncpath ="../outsync.json"
-sidecarsatelite_url = "outsync.json"
-sidecar_url = "insync.json"
+insyncpath = "test_solver/insync.json"
+outsyncpath = "test_solver/outsync.json"
+# sidecarsatelite_url = "outsync.json"
+# sidecar_url = "insync.json"
 
 
 if os.path.exists(insyncpath):
