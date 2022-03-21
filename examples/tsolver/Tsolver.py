@@ -18,8 +18,8 @@ from osparc_control import CommandParameter
 from osparc_control import CommnadType
 from osparc_control import ControlInterface
 
-insyncpath = "test_solver/insync.json"
-outsyncpath = "test_solver/outsync.json"
+# insyncpath = "test_solver/insync.json"
+# outsyncpath = "test_solver/outsync.json"
 
 def jsonKeys2int(x):
     if isinstance(x, dict):
@@ -113,6 +113,7 @@ class Tsolver:
         self.apply_set(self.t)
  
         while self.t<self.tend:
+            print(self.t)
             self.record(self.t)
             self.wait_if_necessary(self.t)
             self.apply_set(self.t)  
@@ -129,6 +130,7 @@ class Tsolver:
         
     def wait_if_necessary(self,t): #move what is possible into the sidecar
         self.sidecar.syncout()
+        print(self.sidecar.waitqueue.myqueue) # debug
         while (not self.sidecar.waitqueue.empty()) and self.sidecar.waitqueue.first()[0] <= t:
             self.sidecar.pause()
             self.wait_a_bit()
@@ -261,9 +263,10 @@ class SideCar:
         ##### CHANGE #########
         commands = self.interface.get_incoming_requests()
         for command in commands:
+            print("received " + str(command))
             if command.action == "command_generic":
                 inputdata = command.params
-                
+                print(str(inputdata))
         # resp = requests.get(self.sidecar_url)
         # if resp.status_code==200:
         #     try: 
@@ -271,7 +274,7 @@ class SideCar:
 
         #     except:
         #         print("problem reading data from " + self.sidecar_url)
-        print(str(inputdata))
+        
         if inputdata != None:
             self.instructions=inputdata['instructions']
             self.executeInstructions()
@@ -281,11 +284,11 @@ class SideCar:
     def syncout(self):
         ##### CHANGE #########
         outputdata={'t':self.t, 'endsignal':self.endsignal, 'paused':self.paused, 'records':self.records} # start?
-        request_id = self.interface.request_with_delayed_reply(
+        self.interface.request_without_reply(
             "command_data", params=outputdata
         )   
-        print("sent " + str(request_id))             
-
+        print("sent stuff")             
+        
         # outputdata={'t':self.t, 'endsignal':self.endsignal, 'paused':self.paused, 'records':self.records} # start?
         # with LockFile(outsyncpath):
         #     with open(outsyncpath,"w") as output1:     
@@ -459,14 +462,7 @@ class TsolverThread(threading.Thread):
     def run(self):
         print("Starting ",self.name)
         T=self.myTsolver.main()
-        fig = plt.figure()
-        ax = fig.add_subplot(1,1,1)
-        ax.set_aspect('equal')
-        plt.imshow(T)
-        plt.colorbar()
-        plt.show() #causes floating point error. why?
         print("Exiting ",self.name)
-
 
 # In[11]:
 

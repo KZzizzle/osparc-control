@@ -127,8 +127,10 @@ class Controller:
         self.controlledvals=[]
         lasttime=0
         while not self.controlled.finished():
+            print("hi")
+
             self.controlled.wait_for_time(waittime,1000)
-            get1=self.controlled.get(str(recindex))
+            get1=self.controlled.get(recindex)
             if not get1:
                 error1 = error_prior
                 timestep=self.t-lasttime
@@ -151,6 +153,7 @@ class Controller:
             waittime=waittime+self.iteration_time
             recindex=self.controlled.record(self.regulationparam_key,waittime,self.regulationparam_otherparams)
             waitindex=self.controlled.continue_until(waittime,waitindex)
+            print(self.controlled.finished())
 
 
 # In[6]:
@@ -253,7 +256,7 @@ class SideCar:
             
     def syncout(self):
         outputdata={'t':self.t, 'endsignal':self.endsignal, 'paused':self.paused, 'records':self.records} # start?
-        request_id = self.interface.request_with_delayed_reply(
+        request_id = self.interface.request_without_reply(
             "command_generic", params=outputdata
         )   
         print("sent " + str(request_id))             
@@ -397,10 +400,11 @@ class SideCarSatelite:
             
     def syncin(self):
         outputdata={'instructions':self.instructions}
-        request_id = self.interface.request_with_delayed_reply(
+        self.interface.request_without_reply(
             "command_generic", params=outputdata
         )
-        print("sent " + str(request_id))
+        print("sent message")
+
 #         outputdata={'instructions':self.instructions}
 #         with LockFile(insyncpath):
 #             with open(insyncpath,"w") as output1:     

@@ -28,7 +28,7 @@ command_data = CommandManifest(
         CommandParameter(name='paused', description="is paused"), 
         CommandParameter(name='records', description="some records")
     ],
-    command_type=CommnadType.WITH_DELAYED_REPLY,
+    command_type=CommnadType.WITHOUT_REPLY,
 )
 
 control_interface = ControlInterface(
@@ -40,17 +40,17 @@ control_interface = ControlInterface(
 
 # insyncpath = "insync.json"
 # outsyncpath ="outsync.json"
-insyncpath = "test_controller/insync.json"
-outsyncpath = "test_controller/outsync.json"
+# insyncpath = "test_controller/insync.json"
+# outsyncpath = "test_controller/outsync.json"
 # sidecarsatelite_url = "https://osparc-master.speag.com/x/9bd7ee34-f2d8-4d6e-ac6d-754a93e8623c" + "/api/contents/outsync.json"
 # sidecar_url = "https://osparc-master.speag.com/x/9bd7ee34-f2d8-4d6e-ac6d-754a93e8623c" + "/api/contents/insync.json"
 
 
 
-if os.path.exists(insyncpath):
-      os.remove(insyncpath)
-if os.path.exists(outsyncpath):
-      os.remove(outsyncpath)
+# if os.path.exists(insyncpath):
+#       os.remove(insyncpath)
+# if os.path.exists(outsyncpath):
+#       os.remove(outsyncpath)
 
 
 
@@ -73,7 +73,7 @@ threads.append(thread3)
 for t in threads:
     t.join()
 thread1b.stop=True
-
+time.sleep(0.5)
 control_interface.stop_background_sync()
 
 
@@ -84,4 +84,6 @@ ax2.plot(thread3.myController.errors)
 ax2.set_title('errors')
 ax3.plot(thread3.myController.controlledvals)
 ax3.set_title('controlled value')
+
+plt.savefig("controller_plot.png")
 print("Exiting Main Thread")

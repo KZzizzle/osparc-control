@@ -26,10 +26,10 @@ command_generic = CommandManifest(
     params=[
         CommandParameter(name="instructions", description="some instructions")
     ],
-    command_type=CommnadType.WITH_DELAYED_REPLY,
+    command_type=CommnadType.WITHOUT_REPLY,
 )
 
-control_interface = ControlInterface(
+model_interface = ControlInterface(
     remote_host="localhost",
     exposed_interface=[command_generic],
     remote_port=1235,
@@ -37,26 +37,26 @@ control_interface = ControlInterface(
 )
 
 
-insyncpath = "test_solver/insync.json"
-outsyncpath = "test_solver/outsync.json"
+# insyncpath = "test_solver/insync.json"
+# outsyncpath = "test_solver/outsync.json"
 # sidecarsatelite_url = "outsync.json"
 # sidecar_url = "insync.json"
 
 
-if os.path.exists(insyncpath):
-      os.remove(insyncpath)
-if os.path.exists(outsyncpath):
-      os.remove(outsyncpath)
+# if os.path.exists(insyncpath):
+#       os.remove(insyncpath)
+# if os.path.exists(outsyncpath):
+#       os.remove(outsyncpath)
 
 
 n=20; Tinit=np.zeros((n,n), float); Tsource=np.ones((n-2,n-2), float); 
-interface = control_interface
-thread1a=TsolverSidecarThread(interface)
-thread2=TsolverThread(1, n, Tinit, 0.1, Tsource, 1, 1, 500, thread1a.myTSolverSideCar)
+
+thread1a=TsolverSidecarThread(model_interface)
+thread2=TsolverThread(1, n, Tinit, 0.1, Tsource, 1, 1, 100, thread1a.myTSolverSideCar)
 # dx, n, Tinit, dt, Tsource, k, sourcescale, tend, sidecar
 
 # Start new Threads
-control_interface.start_background_sync()
+model_interface.start_background_sync()
 
 thread1a.start()
 thread2.start()
@@ -68,5 +68,13 @@ threads.append(thread2)
 for t in threads:
     t.join()
 thread1a.stop=True
+time.sleep(0.5)
+model_interface.stop_background_sync()
 
-control_interface.stop_background_sync()
+fig, ax = plt.subplots(1)
+ax.set_aspect('equal')
+T=thread2.myTsolver.T
+plt.imshow(T)
+plt.colorbar()
+plt.savefig("tsolver_plot.png")
+
