@@ -13,8 +13,8 @@ import random
 import os
 
 
-insyncpath = "test_controller/insync.json"
-outsyncpath = "test_controller/outsync.json"
+# insyncpath = "test_controller/insync.json"
+# outsyncpath = "test_controller/outsync.json"
 # sidecarsatelite_url = "https://osparc-master.speag.com/x/9bd7ee34-f2d8-4d6e-ac6d-754a93e8623c" + "/api/contents/outsync.json"
 # sidecar_url = "https://osparc-master.speag.com/x/9bd7ee34-f2d8-4d6e-ac6d-754a93e8623c" + "/api/contents/insync.json"
 
@@ -127,8 +127,6 @@ class Controller:
         self.controlledvals=[]
         lasttime=0
         while not self.controlled.finished():
-            print("hi")
-
             self.controlled.wait_for_time(waittime,1000)
             get1=self.controlled.get(recindex)
             if not get1:

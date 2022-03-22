@@ -286,8 +286,7 @@ class SideCar:
         outputdata={'t':self.t, 'endsignal':self.endsignal, 'paused':self.paused, 'records':self.records} # start?
         self.interface.request_without_reply(
             "command_data", params=outputdata
-        )   
-        print("sent stuff")             
+        )            
         
         # outputdata={'t':self.t, 'endsignal':self.endsignal, 'paused':self.paused, 'records':self.records} # start?
         # with LockFile(outsyncpath):
@@ -399,11 +398,6 @@ class SideCarSatelite:
         resp = requests.get(sidecarsatelite_url)
         if resp.status_code==200:
             inputdata = json.loads(resp.json()['content'])
-#         if os.path.exists(outsyncpath):
-#             with LockFile(outsyncpath):
-# #             with self.locks['outsynclock']: # xxx timeout?
-#                 with open(outsyncpath, 'r') as f: 
-#                     inputdata = json.load(f)
             self.t=inputdata['t']
             self.endsignal=inputdata['endsignal']
             self.paused=inputdata['paused']
@@ -412,8 +406,6 @@ class SideCarSatelite:
     def syncin(self):
         outputdata={'instructions':self.instructions}
         with LockFile(insyncpath):
-#         logger_out.info(json.dumps(outputdata, sort_keys=True))
-#         import pdb; pdb.set_trace()
 #         with self.locks['insynclock']: # xxx timeout?
             with open(insyncpath,"w") as output1:     
                 json.dump(outputdata, output1, sort_keys=True)
