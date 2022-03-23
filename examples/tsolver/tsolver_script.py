@@ -34,7 +34,7 @@ model_interface = ControlInterface(
 n=20; Tinit=np.zeros((n,n), float); Tsource=np.ones((n-2,n-2), float); 
 
 thread1a=TsolverSidecarThread(model_interface)
-thread2=TsolverThread(1, n, Tinit, 0.1, Tsource, 1, 1, 50, thread1a.myTSolverSideCar)
+thread2=TsolverThread(1, n, Tinit, 0.1, Tsource, 1, 1, 12, thread1a.myTSolverSideCar)
 # dx, n, Tinit, dt, Tsource, k, sourcescale, tend, sidecar
 
 # Start new Threads

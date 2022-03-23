@@ -13,12 +13,6 @@ import random
 import os
 
 
-# insyncpath = "test_controller/insync.json"
-# outsyncpath = "test_controller/outsync.json"
-# sidecarsatelite_url = "https://osparc-master.speag.com/x/9bd7ee34-f2d8-4d6e-ac6d-754a93e8623c" + "/api/contents/outsync.json"
-# sidecar_url = "https://osparc-master.speag.com/x/9bd7ee34-f2d8-4d6e-ac6d-754a93e8623c" + "/api/contents/insync.json"
-
-
 
 def jsonKeys2int(x):
     if isinstance(x, dict):
@@ -39,7 +33,6 @@ def int_please_object_hook(obj):
     return rv
 
 
-# In[4]:
 
 
 class KindofPriorityQueue():
@@ -88,9 +81,6 @@ class KindofPriorityQueue():
     
     def empty(self):
         return not self.myqueue
-
-
-# In[5]:
 
 
 class Controller:
@@ -154,16 +144,12 @@ class Controller:
             print(self.controlled.finished())
 
 
-# In[6]:
-
-
 class SideCar:
     def __init__(self, interface):
         self.t=0;
         self.startsignal=False;
         self.endsignal=False;
         self.paused=True;
-        #self.getsignal=False;
         self.waitqueue=KindofPriorityQueue()
         self.recordqueue=KindofPriorityQueue()
         self.setqueue=KindofPriorityQueue()
@@ -378,35 +364,14 @@ class SideCarSatelite:
                 self.endsignal=inputdata['endsignal']
                 self.paused=inputdata['paused']
                 self.records=inputdata['records']
-                # control_interface.reply_to_command(
-                #     request_id=command.request_id, payload=random_int
-                # )
-                # import pdb; pdb.set_trace()
-                print(inputdata)
+                print(self.t)
 
-
-        # resp = requests.get(sidecarsatelite_url)
-        # if resp.status_code==200:
-        #     try:
-        #         inputdata = json.loads(resp.json()['content'])
-        #         self.t=inputdata['t']
-        #         self.endsignal=inputdata['endsignal']
-        #         self.paused=inputdata['paused']
-        #         self.records=inputdata['records']
-        #     except:
-        #         print('problem reading from ' + sidecarsatelite_url)
-            
     def syncin(self):
         outputdata={'instructions':self.instructions}
         self.interface.request_without_reply(
             "command_generic", params=outputdata
         )
-        print("sent message")
 
-#         outputdata={'instructions':self.instructions}
-#         with LockFile(insyncpath):
-#             with open(insyncpath,"w") as output1:     
-#                 json.dump(outputdata, output1, sort_keys=True)
 
 ######## CHANGE THIS ########################   
 
