@@ -49,28 +49,26 @@ class Tsolver:
             self.T[1:n-1,1:n-1]=self.T[1:n-1,1:n-1]+self.dt*(self.sourcescale*self.Tsource+diffusion);
             self.t=self.t+self.dt;
 
-        self.is_finished();
+        self.finish();
         return self.T;
     
     def wait_a_bit(self):
         time.sleep(0.05);
         
     def wait_if_necessary(self,t): #move what is possible into the sidecar
-        self.sidecar.syncout()
-        print(self.sidecar.waitqueue.myqueue) # debug
-        while (not self.sidecar.waitqueue.empty()) and self.sidecar.waitqueue.first()[0] <= t:
-            self.sidecar.pause()
+        while self.sidecar.get_wait_status(t):
+            print("triggered wait_if_necessary")
             self.wait_a_bit()
-            self.sidecar.syncin()
-        self.sidecar.release()
+
 
     def wait_for_start_signal(self):
         while not self.sidecar.startsignal:
+        # while not self.sidecar.started():
             self.wait_a_bit()
             self.sidecar.syncin()
         self.sidecar.release()
 
-    def is_finished(self):
+    def finish(self):
         self.record(float("inf"))
         self.sidecar.waitqueue.deleteall();
         self.sidecar.endsignal=True; #make function for this and the next line
@@ -107,7 +105,7 @@ class Tsolver:
 
 class TSolverSideCar(SideCar):
     def __init__(self, interface ):
-        SideCar.__init__(self, interface)
+        SideCar.__init__(self, interface, "RESPONDER")
         self.canbeset=self.can_be_set()
         self.canbegotten=self.can_be_gotten()
         

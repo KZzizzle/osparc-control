@@ -12,7 +12,7 @@ import json
 import random
 import os
 
-from communication import SideCarSatelite
+from communication import SideCar
 class Controller:
     def __init__(self,tweakparam_key, initval, regulationparam_key, regulationparam_otherparams, setpoint, iteration_time, KP, KI, KD, controlled):
         self.iteration_time = iteration_time
@@ -46,7 +46,7 @@ class Controller:
         self.sets=[]
         self.controlledvals=[]
         lasttime=0
-        while not self.controlled.finished():
+        while not self.controlled.endsignal:
             self.controlled.wait_for_time(waittime,1000)
             get1=self.controlled.get(recindex)
             if not get1:
@@ -75,9 +75,9 @@ class Controller:
 
 
 
-class TSolverSideCarSatelite(SideCarSatelite):
+class TSolverSideCarSatelite(SideCar):
     def __init__(self, interface):
-        SideCarSatelite.__init__(self, interface)
+        SideCar.__init__(self, interface, "REQUESTER")
         self.canbeset=self.can_be_set()
         self.canbegotten=self.can_be_gotten()
         

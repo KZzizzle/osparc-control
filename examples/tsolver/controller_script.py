@@ -51,9 +51,10 @@ threads.append(thread3)
 # Wait for all threads to complete
 for t in threads:
     t.join()
+
 time.sleep(0.5)
 thread1b.stop=True
-
+time.sleep(0.5)
 control_interface.stop_background_sync()
 
 

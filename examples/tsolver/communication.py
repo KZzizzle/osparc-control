@@ -60,35 +60,69 @@ class KindofPriorityQueue():
         return not self.myqueue
 
 
-class SideCarSatelite:
-    def __init__(self, interface):
+
+class SideCar:
+    def __init__(self, interface, io):
         self.t=0;
         self.startsignal=False;
         self.endsignal=False;
         self.paused=True;
+        #self.getsignal=False;
+        self.waitqueue=KindofPriorityQueue()
+        self.recordqueue=KindofPriorityQueue()
+        self.setqueue=KindofPriorityQueue()
         self.records={}
         self.instructions=[]
+        self.instructioncounter=0
         self.canbeset=[]
         self.canbegotten=[]
         self.interface=interface
- 
+        self.io=io
+
     def can_be_set(self): # controllable parameters of the model
         return self.canbeset; 
 
     def setnow(self,key,value):
-        self.instructions.append({'inst':'setnow','key':key,'val':value})
+        if self.io == "RESPONDER":
+            if(key in self.canbeset):
+                self.setqueue.insert(self.t,(key,value))
+                return 0
+            return -1
+        elif self.io == "REQUESTER":
+            self.instructions.append({'inst':'setnow','key':key,'val':value})
+        else:
+            print("Unsupported communicator: " + str(self.io) + " - only 'REQUESTER' or 'RESPONDER' allowed")
+            return-1
 
     def set1(self,key,value,t):
-        self.instructions.append({'inst':'set','t':t,'key':key,'val':value})
+        if self.io == "RESPONDER":
+            if(key in self.canbeset):
+                self.setqueue.insert(t,(key,value))
+                return 0
+            return -1;
+        elif self.io == "REQUESTER":
+            self.instructions.append({'inst':'set','t':t,'key':key,'val':value})
+        else:
+            print("Unsupported communicator: " + str(self.io) + " - only 'REQUESTER' or 'RESPONDER' allowed")
+            return-1
+
 
     def can_be_gotten(self): # observables of the model (similar to sensor)
         return self.canbegotten
 
-    def record(self,key,timepoints,otherparams): # when and where to record observables
-        index = random.getrandbits(64)
-        self.instructions.append({'inst':'record','timepoints':timepoints,'key':key,'otherparams':otherparams,'index':index})
-        return index
-                
+    def record(self,key,timepoints,otherparams,index=None): # when and where to record observables
+        if self.io == "RESPONDER":
+            if key in self.canbegotten:
+                self.recordqueue.insert_with_index(timepoints,(key,otherparams),index) #xxx problem with more than one timepoint
+                self.records[index]=[]
+        elif self.io == "REQUESTER":
+            index = random.getrandbits(64)
+            self.instructions.append({'inst':'record','timepoints':timepoints,'key':key,'otherparams':otherparams,'index':index})
+            return index
+        else:
+            print("Unsupported communicator: " + str(self.io) + " - only 'REQUESTER' or 'RESPONDER' allowed")
+            return-1
+
     def wait_a_bit(self):
         time.sleep(0.05);
         
@@ -105,124 +139,79 @@ class SideCarSatelite:
         if self.t<waittime:
             print('timeout')
 
-    def get_time(self):
-        return t;
-
-    def wait_for_me_at(self,t):
-        index = random.getrandbits(64)
-        self.instructions.append({'inst':'waitformeat','t':t,'index':index})
-        return index 
-
-    def continue_please(self,index):
-        self.instructions.append({'inst':'continueplease','index':index})
-        self.release()
-        
-    def continue_until(self,t,index): # schedule your wait point for later
-        index1 = random.getrandbits(64)
-        self.instructions.append({'inst':'continueuntil','t':t,'index1':index1,'index2':index})
-        self.release()
-        return index1;
-
-    def start(self):
-        self.instructions.append({'inst':'start'})
-        self.release()
-
-    def finished(self):
-        return self.endsignal;
-        
-    def release(self):
-        if self.paused:
+    def get_wait_status(self, t):
+        self.syncout()
+        # print(self.waitqueue.myqueue)
+        if (not self.waitqueue.empty()) and (self.waitqueue.first()[0] <= t):
+            self.pause()
             self.syncin()
-            self.paused=False #syncout of the pause?
-            self.syncout()
+            return True
+        else:
+            self.release()
+            return False
 
-######## CHANGE THIS ########################   
-            
-    def syncout(self):
-        commands = self.interface.get_incoming_requests()
-        for command in commands:
-            if command.action == "command_data":
-                inputdata = command.params
-                self.t=inputdata['t']
-                self.endsignal=inputdata['endsignal']
-                self.paused=inputdata['paused']
-                self.records=inputdata['records']
-                print(self.t)
+    # def started(self):
+    #     if not self.startsignal:
+    #         self.syncin()
+    #         self.syncout()
+    #         return True
+    #     else:
+    #         self.release()
+    #         return False
 
-    def syncin(self):
-        outputdata={'instructions':self.instructions}
-        self.interface.request_without_reply(
-            "command_generic", params=outputdata
-        )
+    def get_time(self):
+        return self.t;
 
+    def wait_for_me_at(self,t,index=None):
+        if self.io == "RESPONDER":
+            self.waitqueue.insert_with_index(t,None,index)
+        elif self.io == "REQUESTER":
+            index = random.getrandbits(64)
+            self.instructions.append({'inst':'waitformeat','t':t,'index':index})
+            return index
+        else:
+            print("Unsupported communicator: " + str(self.io) + " - only 'REQUESTER' or 'RESPONDER' allowed")
+            return-1
 
-######## CHANGE THIS ########################   
-
-class SideCar:
-    def __init__(self, interface):
-        self.t=0;
-        self.startsignal=False;
-        self.endsignal=False;
-        self.paused=True;
-        #self.getsignal=False;
-        self.waitqueue=KindofPriorityQueue()
-        self.recordqueue=KindofPriorityQueue()
-        self.setqueue=KindofPriorityQueue()
-        self.records={}
-        self.instructions=[]
-        self.instructioncounter=0
-        self.canbeset=[]
-        self.canbegotten=[]
-        self.interface=interface
-
-    def can_be_set(self): # controllable parameters of the model
-        return self.canbeset; 
-
-    def setnow(self,key,value):
-        if(key in self.canbeset):
-            self.setqueue.insert(self.t,(key,value))
-            return 0
-        return -1
-
-    def set1(self,key,value,t):
-        if(key in self.canbeset):
-            self.setqueue.insert(t,(key,value))
-            return 0
-        return -1;
-
-    def can_be_gotten(self): # observables of the model (similar to sensor)
-        return self.canbegotten
-
-    def record(self,key,timepoints,otherparams,index): # when and where to record observables
-        if key in self.canbegotten:
-            self.recordqueue.insert_with_index(timepoints,(key,otherparams),index) #xxx problem with more than one timepoint
-            self.records[index]=[]
-
-    def wait_a_bit(self):
-        time.sleep(0.05);
-        
-    def get(self,index):
-        return self.records[index]
-
-    def wait_for_me_at(self,t,index):
-        self.waitqueue.insert_with_index(t,None,index)
-
-    def continue_please(self,index):
-        mywait=self.waitqueue.get(index)
-        if mywait!=None:
-            self.waitqueue.delete(index)
-            if self.waitqueue.first()==None or self.waitqueue.first()[0]>self.t:
-                self.release();
+    def continue_please(self,index=None):
+        if self.io == "RESPONDER":
+            mywait=self.waitqueue.get(index)
+            if mywait!=None:
+                self.waitqueue.delete(index)
+                if self.waitqueue.first()==None or self.waitqueue.first()[0]>self.t:
+                    self.release();
+        elif self.io == "REQUESTER":
+            self.instructions.append({'inst':'continueplease','index':index})
+            self.release()
+        else:
+            print("Unsupported communicator: " + str(self.io) + " - only 'REQUESTER' or 'RESPONDER' allowed")
+            return-1
         
 
-    def continue_until(self,t,index1,index2): # schedule your wait point for later
-        self.wait_for_me_at(t,index1);
-        self.continue_please(index2);
-        return
+    def continue_until(self,t,index=None,index2=None): # schedule your wait point for later
+        if self.io == "RESPONDER":
+            self.wait_for_me_at(t,index);
+            self.continue_please(index2);
+            return
+        elif self.io == "REQUESTER":
+            index1 = random.getrandbits(64)
+            self.instructions.append({'inst':'continueuntil','t':t,'index1':index1,'index2':index})
+            self.release()
+            return index1;
+        else:
+            print("Unsupported communicator: " + str(self.io) + " - only 'REQUESTER' or 'RESPONDER' allowed")
+            return-1
 
     def start(self):
-        self.startsignal=True;
-        self.release();
+        if self.io == "RESPONDER":
+            self.startsignal=True;
+            self.release();
+        elif self.io == "REQUESTER":
+            self.instructions.append({'inst':'start'})
+            self.release()
+        else:
+            print("Unsupported communicator: " + str(self.io) + " - only 'REQUESTER' or 'RESPONDER' allowed")
+            return-1
 
     def pause(self):
         if (not self.paused) or (not self.startsignal):
@@ -234,29 +223,52 @@ class SideCar:
             self.syncin()
             self.paused=False 
             self.syncout()
-            
-    def syncin(self):
-        inputdata = None
-        ##### CHANGE #########
-        commands = self.interface.get_incoming_requests()
-        for command in commands:
-            print("received " + str(command))
-            if command.action == "command_generic":
-                inputdata = command.params
-                print(str(inputdata))
 
-        if inputdata != None:
-            self.instructions=inputdata['instructions']
-            self.executeInstructions()
-            print("Successfully executed " + str(inputdata))
-        ##### CHANGE #########    
-            
+    def finished(self):
+        return self.endsignal;
+
+    def syncin(self):
+        if self.io == "RESPONDER":
+            inputdata = None
+            commands = self.interface.get_incoming_requests()
+            for command in commands:
+                # print("received " + str(command))
+                if command.action == "command_generic":
+                    inputdata = command.params
+                    print(str(inputdata))
+                if inputdata != None:
+                    self.instructions=inputdata['instructions']
+                    self.executeInstructions()
+                    print("Successfully executed " + str(inputdata))
+        elif self.io == "REQUESTER":
+            outputdata={'instructions':self.instructions}
+            self.interface.request_without_reply(
+                "command_generic", params=outputdata
+            )
+        else:
+            print("Unsupported communicator: " + str(self.io) + " - only 'REQUESTER' or 'RESPONDER' allowed")
+            return-1
+
+
     def syncout(self):
-        ##### CHANGE #########
-        outputdata={'t':self.t, 'endsignal':self.endsignal, 'paused':self.paused, 'records':self.records} # start?
-        self.interface.request_without_reply(
-            "command_data", params=outputdata
-        )            
+        if self.io == "RESPONDER":
+            outputdata={'t':self.t, 'endsignal':self.endsignal, 'paused':self.paused, 'records':self.records} # start?
+            self.interface.request_without_reply(
+                "command_data", params=outputdata
+            )
+        elif self.io == "REQUESTER":
+            commands = self.interface.get_incoming_requests()
+            for command in commands:
+                if command.action == "command_data":
+                    inputdata = command.params
+                    self.t=inputdata['t']
+                    self.endsignal=inputdata['endsignal']
+                    self.paused=inputdata['paused']
+                    self.records=inputdata['records']
+                    print(self.t)
+        else:
+            print("Unsupported communicator: " + str(self.io) + " - only 'REQUESTER' or 'RESPONDER' allowed")
+            return-1            
 
     def executeInstructions(self):
         l=len(self.instructions)

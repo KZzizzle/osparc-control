@@ -49,8 +49,10 @@ threads.append(thread2)
 # Wait for all threads to complete
 for t in threads:
     t.join()
+
 time.sleep(0.5)
 thread1a.stop=True
+time.sleep(0.5)
 
 model_interface.stop_background_sync()
 
