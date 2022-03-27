@@ -15,15 +15,17 @@ from osparc_control import ControlInterface
 
 command_data = CommandManifest(
     action="command_data",
-    description="receive some stuff",
+    description="State Data",
     params=[
         CommandParameter(name='t', description="time"),
-        CommandParameter(name='endsignal', description="end?"),
+        CommandParameter(name='endsignal', description="is finished"),
         CommandParameter(name='paused', description="is paused"), 
         CommandParameter(name='records', description="some records")
     ],
     command_type=CommnadType.WITHOUT_REPLY,
 )
+
+
 
 control_interface = ControlInterface(
     remote_host="localhost",
@@ -37,7 +39,7 @@ n=20; Tinit=np.zeros((n,n), float); Tsource=np.ones((n-2,n-2), float);
 
 
 thread1b=TsolverSidecarSateliteThread(control_interface)
-thread3=ControllerThread('sourcescale', 1, 'Tpoint', [10,10], 4, 5, 0.01, 0, 0, thread1b.myTSolverSideCarSatelite)
+thread3=ControllerThread('sourcescale', 1, 'Tpoint', [10,10], 4, 10, 0.01, 0, 0, thread1b.myTSolverSideCarSatelite)
 #tweakparam_key, regulationparam_key, regulationparam_otherparams, setpoint, iteration_time, KP, KI, KD
 
 # Start threads

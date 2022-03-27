@@ -70,9 +70,10 @@ class Tsolver:
 
     def finish(self):
         self.record(float("inf"))
-        self.sidecar.waitqueue.deleteall();
-        self.sidecar.endsignal=True; #make function for this and the next line
-        self.sidecar.pause() # what happens if the sidecar is in the middle of executing the wait_for_pause; how about release synchronization
+        self.sidecar.finish()
+        # self.sidecar.waitqueue.deleteall();
+        # self.sidecar.endsignal=True; #make function for this and the next line
+        # self.sidecar.pause() # what happens if the sidecar is in the middle of executing the wait_for_pause; how about release synchronization
 
     def record(self,t):
         while (not self.sidecar.recordqueue.empty()) and self.sidecar.recordqueue.first()[0] <= t:

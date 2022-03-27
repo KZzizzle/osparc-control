@@ -14,18 +14,25 @@ from osparc_control import ControlInterface
 
 
 
-command_generic = CommandManifest(
-    action="command_generic",
-    description="send some stuff",
+command_instruct = CommandManifest(
+    action="command_instruct",
+    description="Execution Instructions",
     params=[
-        CommandParameter(name="instructions", description="some instructions")
+        CommandParameter(name="instructions", description="Instructions for execution.")
     ],
+    command_type=CommnadType.WITHOUT_REPLY,
+)
+
+command_retrieve = CommandManifest(
+    action="command_retrieve",
+    description="gets state",
+    params=[],
     command_type=CommnadType.WITHOUT_REPLY,
 )
 
 model_interface = ControlInterface(
     remote_host="localhost",
-    exposed_interface=[command_generic],
+    exposed_interface=[command_instruct, command_retrieve],
     remote_port=1235,
     listen_port=1234,
 )
@@ -34,7 +41,7 @@ model_interface = ControlInterface(
 n=20; Tinit=np.zeros((n,n), float); Tsource=np.ones((n-2,n-2), float); 
 
 thread1a=TsolverSidecarThread(model_interface)
-thread2=TsolverThread(1, n, Tinit, 0.1, Tsource, 1, 1, 12, thread1a.myTSolverSideCar)
+thread2=TsolverThread(1, n, Tinit, 0.1, Tsource, 1, 1, 500, thread1a.myTSolverSideCar)
 # dx, n, Tinit, dt, Tsource, k, sourcescale, tend, sidecar
 
 # Start new Threads
