@@ -65,7 +65,7 @@ class Tsolver:
         while not self.sidecar.startsignal:
         # while not self.sidecar.started():
             self.wait_a_bit()
-            self.sidecar.syncin()
+            self.sidecar.sync()
         self.sidecar.release()
 
     def finish(self):

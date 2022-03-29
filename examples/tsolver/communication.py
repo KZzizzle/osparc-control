@@ -1,8 +1,4 @@
 
-
-from lockfile import LockFile
-import requests
-
 import numpy as np
 import scipy
 import threading
@@ -132,19 +128,19 @@ class SideCar:
     def wait_for_time(self,waittime,maxcount):
         counter=0;
         while self.t<waittime and counter<maxcount:
-            self.syncout()
-            self.syncin()
+            self.sync()
+            self.sync()
             self.wait_a_bit()
             counter+=1
         if self.t<waittime:
             print('timeout')
 
     def get_wait_status(self, t):
-        self.syncout()
+        self.sync()
         # print(self.waitqueue.myqueue)
         if (not self.waitqueue.empty()) and (self.waitqueue.first()[0] <= t):
             self.pause()
-            self.syncin()
+            self.sync()
             return True
         else:
             self.release()
@@ -152,8 +148,8 @@ class SideCar:
 
     # def started(self):
     #     if not self.startsignal:
-    #         self.syncin()
-    #         self.syncout()
+    #         self.sync()
+    #         self.sync()
     #         return True
     #     else:
     #         self.release()
@@ -216,18 +212,18 @@ class SideCar:
     def pause(self):
         if (not self.paused) or (not self.startsignal):
             self.paused=True
-            self.syncout()
+            self.sync()
         
     def release(self):
         if self.paused:
-            self.syncin()
+            self.sync()
             self.paused=False 
-            self.syncout()
+            self.sync()
 
     def finished(self):
         return self.endsignal;
 
-    def syncin(self):
+    def sync(self):
         if self.io == "RESPONDER":
             inputdata = None
             commands = self.interface.get_incoming_requests()
@@ -279,65 +275,7 @@ class SideCar:
             outputdata={'t':self.t, 'endsignal':self.endsignal, 'paused':self.paused, 'records':self.records} # start?
             self.interface.request_without_reply(
                 "command_data", params=outputdata
-            )
-
-    def syncout(self):
-        if self.io == "RESPONDER":
-            inputdata = None
-            commands = self.interface.get_incoming_requests()
-            for command in commands:
-                if command.action == "command_instruct":
-                    inputdata = command.params
-                    print(str(inputdata))
-                elif command.action == "command_retrieve":
-                    outputdata={'t':self.t, 'endsignal':self.endsignal, 'paused':self.paused, 'records':self.records} # start?
-                    self.interface.request_without_reply(
-                        "command_data", params=outputdata
-                    )
-                    print("got retrieve")
-                    return
-                if inputdata != None:
-                    self.instructions=inputdata['instructions']
-                    self.executeInstructions()
-                    print("Successfully executed " + str(inputdata))
-            # outputdata={'t':self.t, 'endsignal':self.endsignal, 'paused':self.paused, 'records':self.records} # start?
-            # self.interface.request_without_reply(
-            #     "command_data", params=outputdata
-            # )
-        elif self.io == "REQUESTER":
-            if self.instructions:
-                outputdata={'instructions':self.instructions}
-                self.interface.request_without_reply(
-                    "command_instruct", params=outputdata
-                )
-
-            self.interface.request_without_reply("command_retrieve")
-            print("asked to get state...")
-
-
-            inputdata = None
-            commands = self.interface.get_incoming_requests()
-            for command in commands:
-                if command.action == "command_data":
-                    inputdata = command.params
-                    self.t=inputdata['t']
-                    self.endsignal=inputdata['endsignal']
-                    self.paused=inputdata['paused']
-                    self.records=inputdata['records']
-                    print(self.t)
-            # # solver_time = control_interface.request_with_immediate_reply("command_retrieve", timeout=2.0)
-            # request_id = self.interface.request_with_delayed_reply("command_retrieve")
-            # # has_result, inputdata = self.interface.check_for_reply(request_id=request_id)
-            # # print(inputdata)
-            # # if inputdata != None:
-            # #     self.t=inputdata['t']
-            # #     self.endsignal=inputdata['endsignal']
-            # #     self.paused=inputdata['paused']
-            # #     self.records=inputdata['records']
-            # #     print(self.t)
-        else:
-            print("Unsupported communicator: " + str(self.io) + " - only 'REQUESTER' or 'RESPONDER' allowed")
-            return-1            
+            )     
 
     def executeInstructions(self):
         l=len(self.instructions)
@@ -431,15 +369,15 @@ class SideCar:
 #     def pause(self):
 #         if (not self.paused) or (not self.startsignal):
 #             self.paused=True
-#             self.syncout()
+#             self.sync()
         
 #     def release(self):
 #         if self.paused:
-#             self.syncin()
+#             self.sync()
 #             self.paused=False 
-#             self.syncout()
+#             self.sync()
             
-#     def syncin(self):
+#     def sync(self):
 #         inputdata = None
 #         ##### CHANGE #########
 #         commands = self.interface.get_incoming_requests()
@@ -455,7 +393,7 @@ class SideCar:
 #             print("Successfully executed " + str(inputdata))
 #         ##### CHANGE #########    
             
-#     def syncout(self):
+#     def sync(self):
 #         ##### CHANGE #########
 #         outputdata={'t':self.t, 'endsignal':self.endsignal, 'paused':self.paused, 'records':self.records} # start?
 #         self.interface.request_without_reply(
@@ -524,8 +462,8 @@ class SideCar:
 #     def wait_for_time(self,waittime,maxcount):
 #         counter=0;
 #         while self.t<waittime and counter<maxcount:
-#             self.syncout()
-#             self.syncin()
+#             self.sync()
+#             self.sync()
 #             self.wait_a_bit()
 #             counter+=1
 #         if self.t<waittime:
@@ -558,13 +496,13 @@ class SideCar:
         
 #     def release(self):
 #         if self.paused:
-#             self.syncin()
-#             self.paused=False #syncout of the pause?
-#             self.syncout()
+#             self.sync()
+#             self.paused=False #sync of the pause?
+#             self.sync()
 
 # ######## CHANGE THIS ########################   
             
-#     def syncout(self):
+#     def sync(self):
 #         commands = self.interface.get_incoming_requests()
 #         for command in commands:
 #             if command.action == "command_data":
@@ -575,7 +513,7 @@ class SideCar:
 #                 self.records=inputdata['records']
 #                 print(self.t)
 
-#     def syncin(self):
+#     def sync(self):
 #         outputdata={'instructions':self.instructions}
 #         self.interface.request_without_reply(
 #             "command_instruct", params=outputdata
